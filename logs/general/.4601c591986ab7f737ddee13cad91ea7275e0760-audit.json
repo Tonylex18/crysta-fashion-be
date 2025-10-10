@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "/Users/mac/Desktop/christabel-brand/backend/logs/general/.4601c591986ab7f737ddee13cad91ea7275e0760-audit.json",
+    "files": [
+        {
+            "date": 1760056650385,
+            "name": "/Users/mac/Desktop/christabel-brand/backend/logs/general/general-2025-10-10.log",
+            "hash": "89481530cc1aeb05ed232693733389671d22cbdfe3d168037177eb04638e7426"
+        }
+    ],
+    "hashType": "sha256"
+}
