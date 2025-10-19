@@ -7,6 +7,8 @@ export interface IOrderItem extends Document {
   size?: string;
   color?: string;
   price: number;
+  subtotal: number;
+  specifications: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,6 +39,10 @@ const orderItemSchema = new Schema<IOrderItem>({
     type: Number,
     required: true,
     min: 0
+  },
+  subtotal: {
+    type: Number,
+    required: true,
   }
 }, {
   timestamps: true

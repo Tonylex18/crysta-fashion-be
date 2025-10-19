@@ -9,6 +9,41 @@
             "date": 1760056650372,
             "name": "/Users/mac/Desktop/christabel-brand/backend/logs/error/error-2025-10-10.log",
             "hash": "5d6fadc3b2d741f61a776ff871b1d0348376e8369311fc5f9305baf037889a26"
+        },
+        {
+            "date": 1760165444877,
+            "name": "/Users/mac/Desktop/christabel-brand/backend/logs/error/error-2025-10-11.log",
+            "hash": "ef8b71d1d4c39dcb4688dfa7e8bccaffc058a5bae921f2a305662abbb23d4c67"
+        },
+        {
+            "date": 1760381897040,
+            "name": "/Users/mac/Desktop/christabel-brand/backend/logs/error/error-2025-10-13.log",
+            "hash": "6fc9865fa05aa0b00660ae5637999d2074fbe0c98574f6ea346ccb67d4463478"
+        },
+        {
+            "date": 1760423258204,
+            "name": "/Users/mac/Desktop/christabel-brand/backend/logs/error/error-2025-10-14.log",
+            "hash": "17893094550cd2709c880f4d9f0a685792a98a11c4c4df54dc41a95c2b0b70a9"
+        },
+        {
+            "date": 1760531352980,
+            "name": "/Users/mac/Desktop/christabel-brand/backend/logs/error/error-2025-10-15.log",
+            "hash": "453b0f49e5410575097c86f162b435b98c4f13b52cf7c73ca7fa9308e2ff88a6"
+        },
+        {
+            "date": 1760612863410,
+            "name": "/Users/mac/Desktop/christabel-brand/backend/logs/error/error-2025-10-16.log",
+            "hash": "60f87cdb2d82f80074fe5113cc80e0b269c6b6dff9b432ba2b9fcb113793b25f"
+        },
+        {
+            "date": 1760763991631,
+            "name": "/Users/mac/Desktop/christabel-brand/backend/logs/error/error-2025-10-18.log",
+            "hash": "2fba1baa70764316e6639d4fd6b3f136f2a21050083cf2ffe01476ca6fb97d0b"
+        },
+        {
+            "date": 1760892291030,
+            "name": "/Users/mac/Desktop/christabel-brand/backend/logs/error/error-2025-10-19.log",
+            "hash": "ec55071277ad6d0cafecf42c10f090b85567e1b8b0d93eb0b91a903f5b9a077e"
         }
     ],
     "hashType": "sha256"

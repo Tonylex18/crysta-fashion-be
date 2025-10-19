@@ -6,7 +6,86 @@ import { hashPassword } from "../../utils/password.util.spec"
 import jwt from "jsonwebtoken"
 import { Role } from "../../shared/enums/user-role.enum";
 import sendEmail from "../../utils/sendMail/nodeMailer";
+import comparePasswords from "../../utils/compare-password/compare-password.handler";
 
+// Login a user
+export const UserLogin = async (req: Request, res: Response) => {
+    const { email, password } = req.body;
+
+    try {
+        // Check if all fields are provided
+        if (!email || !password) {
+            return res.status(400).json ({
+                success: false,
+                message: "Please provide all data"
+            })
+        }
+        
+        // Find user by email
+		let user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            })
+        }
+
+        // Check if the email is verified
+		if (!user.isEmailVerified) {
+			return res.status(403).json({
+				success: false,
+				message: "Email not verified. Please verify your email to login.",
+			});
+		}
+
+        // Compare passwords (same logic for both user types)
+		const isPasswordMatch = await comparePasswords(password, user.password);
+		if (!isPasswordMatch) {
+			return res.status(401).json({
+				success: false,
+				message: "Invalid credentials",
+			});
+		}
+
+        // Generate JWT
+		const jwtSecret = process.env.JWT_SECRET;
+		if (!jwtSecret) {
+			throw new Error("JWT secret is not set in environment variables");
+		}
+
+        const tokenPayload = {
+            id: user._id,
+            role: "USER",
+            email: user.email,
+        };
+
+        const accessToken = jwt.sign(tokenPayload, jwtSecret, { expiresIn: "1h" })
+
+        // Set token as HTTP-only cookie
+        const tokenOptions = {
+			httpOnly: true,
+			secure: process.env.NODE_ENV === "production",
+			sameSite: "strict" as const,
+		};
+
+        // Send cookie and response with user data and type
+		res.status(200).cookie("accessToken", accessToken, tokenOptions).json({
+			success: true,
+			message: "Login successful",
+			accessToken,
+			user,
+		});
+    } catch (error: any) {
+        console.error("Login error:", error);
+		return res.status(500).json({
+			success: false,
+			message: "An error occurred signing in",
+			error: error.message,
+		});
+    }
+}
+
+// User Sign Up
 export const UserSignUP = async (req: Request, res: Response) => {
     try {
         const { name, email, password } = req.body;
@@ -92,6 +171,7 @@ export const UserSignUP = async (req: Request, res: Response) => {
 		await sendEmail(email, subject, text);
 
         console.log("New User Registered successfully");
+		console.log("New User: ", newUser)
 		return res.status(201).json({
 			success: true,
 			message:
@@ -267,5 +347,6 @@ export const userController = {
     verifyEmail,
     requestNewOTP,
     getAllUsers,
-    getaUser
+    getaUser,
+    UserLogin
 }

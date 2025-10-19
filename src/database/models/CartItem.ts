@@ -4,6 +4,9 @@ export interface ICartItem extends Document {
   user_id: Types.ObjectId;
   product_id: Types.ObjectId;
   quantity: number;
+  price: number;
+  subtotal: number;
+  specifications: string;
   size?: string;
   color?: string;
   createdAt: Date;
@@ -26,6 +29,16 @@ const cartItemSchema = new Schema<ICartItem>({
     required: true,
     min: 1,
     default: 1
+  },
+  price: {
+    type: Number,
+    required: true
+  },
+  subtotal: {
+    type: Number,
+  },
+  specifications: {
+    type: String
   },
   size: {
     type: String
