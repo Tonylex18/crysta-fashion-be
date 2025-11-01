@@ -1,10 +1,26 @@
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 
 
 
-// I'm using multer.memoryStorage so the file can be stored in memory for buffer to be generated for cloud uplaod
-const storage = multer.memoryStorage()
+// Ensure uploads directory exists (backend/uploads)
+const uploadsDir = path.join(__dirname, '../../../uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Use disk storage to save files under uploads with a safe filename
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (_req, file, cb) => {
+    const timestamp = Date.now();
+    const safeOriginal = file.originalname.replace(/[^a-zA-Z0-9_.-]/g, '_');
+    cb(null, `${timestamp}-${safeOriginal}`);
+  }
+});
 
 // File filter to ensure only image files are uploaded
 const fileFilter = (req: any, file: any, cb: any) => {

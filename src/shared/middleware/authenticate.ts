@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { ForbiddenError } from '../errors/forbidden.error';
+import { UnauthorizedError } from '../errors/unauthorized.error';
 import { Role } from '../enums/user-role.enum';
 
 declare global {
@@ -20,7 +21,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
         const token = req.cookies.accessToken || req.headers.authorization?.split(' ')[1];
 
         if (!token) {
-            throw new ForbiddenError('Authentication required');
+            throw new UnauthorizedError('Please sign in to access this resource');
         }
 
         const jwtSecret = process.env.JWT_SECRET;
@@ -35,7 +36,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 
         // Check if required fields exist in the token
         if (!decoded.id || !decoded.email) {
-            throw new ForbiddenError('Invalid token payload');
+            throw new UnauthorizedError('Invalid authentication token. Please sign in again');
         }
 
         // Handle different possible role field names
@@ -43,7 +44,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
         
         if (!userRole) {
             console.error('No role found in JWT payload. Available fields:', Object.keys(decoded));
-            throw new ForbiddenError('No role specified in token');
+            throw new UnauthorizedError('Invalid authentication token. Please sign in again');
         }
 
         // Normalize role to match Role enum (e.g., 'sponsor' -> 'SPONSOR')
@@ -52,7 +53,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
         // Ensure role is a valid Role enum value
         const validRoles = Object.values(Role);
         if (!validRoles.includes(normalizedRole)) {
-            throw new ForbiddenError(`Invalid role: ${userRole}`);
+            throw new UnauthorizedError('Invalid authentication token. Please sign in again');
         }
 
         // Set the user information in the request
@@ -67,7 +68,9 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
         next();
     } catch (error) {
         if (error instanceof jwt.JsonWebTokenError) {
-            next(new ForbiddenError('Invalid token'));
+            next(new UnauthorizedError('Invalid or expired token. Please sign in again'));
+        } else if (error instanceof jwt.TokenExpiredError) {
+            next(new UnauthorizedError('Your session has expired. Please sign in again'));
         } else {
             next(error);
         }

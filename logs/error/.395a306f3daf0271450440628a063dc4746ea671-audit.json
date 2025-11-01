@@ -44,6 +44,21 @@
             "date": 1760892291030,
             "name": "/Users/mac/Desktop/christabel-brand/backend/logs/error/error-2025-10-19.log",
             "hash": "ec55071277ad6d0cafecf42c10f090b85567e1b8b0d93eb0b91a903f5b9a077e"
+        },
+        {
+            "date": 1760954561665,
+            "name": "/Users/mac/Desktop/christabel-brand/backend/logs/error/error-2025-10-20.log",
+            "hash": "01efa376f5ff59ebc2f4d8efc187f17b1f9dab67f357a7183f92a6bf78ed6625"
+        },
+        {
+            "date": 1761119193852,
+            "name": "/Users/mac/Desktop/christabel-brand/backend/logs/error/error-2025-10-22.log",
+            "hash": "b00ea67ff81b33468c3eeacad9487b46daf55c44af0ce3b25f45a2df7e6f3b4f"
+        },
+        {
+            "date": 1761191969680,
+            "name": "/Users/mac/Desktop/christabel-brand/backend/logs/error/error-2025-10-23.log",
+            "hash": "904c2538fac1c5c91f9b16958a6683dc89f988549c3aeb626c3a363b230867ce"
         }
     ],
     "hashType": "sha256"

@@ -1,6 +1,7 @@
 import { Request, Response} from "express";
 import validator from "validator";
 import User from "../../database/models/User";
+import DeliveryInformation from "../../database/models/DeliveryAddress";
 import { generateOtp } from "../../utils/otpGenerate/otp.generate";
 import { hashPassword } from "../../utils/password.util.spec"
 import jwt from "jsonwebtoken"
@@ -59,7 +60,7 @@ export const UserLogin = async (req: Request, res: Response) => {
             email: user.email,
         };
 
-        const accessToken = jwt.sign(tokenPayload, jwtSecret, { expiresIn: "1h" })
+        const accessToken = jwt.sign(tokenPayload, jwtSecret, { expiresIn: "7d" })
 
         // Set token as HTTP-only cookie
         const tokenOptions = {
@@ -154,14 +155,14 @@ export const UserSignUP = async (req: Request, res: Response) => {
 			email: newUser.email,
 		}
 
-		const accessToken = jwt.sign(tokenPayload, jwtSecret, { expiresIn: "1h" })
+		const accessToken = jwt.sign(tokenPayload, jwtSecret, { expiresIn: "7d" })
 
         // Set token as HTTP-only cookie
 		res.cookie("accessToken", accessToken, {
 			httpOnly: true,
 			secure: process.env.NODE_ENV === "production",
 			sameSite: "strict" as const,
-			maxAge: 60 * 60 * 1000,
+			maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 		})
 
 		// Send OTP to the user's email
@@ -342,11 +343,323 @@ export const getaUser = async (req: Request, res: Response) => {
 	}
 };
 
+// Get user profile
+export const getUserProfile = async (req: Request, res: Response) => {
+    try {
+        const userId = req.user?.id;
+        
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: "User not authenticated"
+            });
+        }
+
+        const user = await User.findById(userId).select('-password -otp -otpExpiration');
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            user: user
+        });
+    } catch (error: any) {
+        console.error("Get profile error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "An error occurred getting user profile",
+            error: error.message,
+        });
+	}
+};
+
+// Refresh token
+export const refreshToken = async (req: Request, res: Response) => {
+    try {
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
+
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                message: "No token provided"
+            });
+        }
+
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+            throw new Error("JWT secret is not set in environment variables");
+        }
+
+        let decoded: any;
+        try {
+            // Try to decode the token, even if it's expired
+            decoded = jwt.verify(token, jwtSecret, { ignoreExpiration: true });
+        } catch (error) {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid token"
+            });
+        }
+
+        // Find user by ID from the token
+        const user = await User.findById(decoded.id).select('-password');
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        // Generate new JWT token
+        const tokenPayload = {
+            id: user._id,
+            role: "USER",
+            email: user.email,
+        };
+
+        const accessToken = jwt.sign(tokenPayload, jwtSecret, { expiresIn: "7d" });
+
+        res.status(200).json({
+            success: true,
+            accessToken,
+            user: {
+                id: user._id,
+                email: user.email,
+                name: user.name,
+                created_at: user.createdAt
+            }
+        });
+    } catch (error: any) {
+        console.error("Refresh token error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "An error occurred refreshing token",
+            error: error.message,
+        });
+    }
+};
+
+// Delivery Information
+export const addDeliveryInformation = async (req: Request, res: Response) => {
+    try {
+        const userId = req.user?.id;
+        console.log(userId);
+        const { firstName, lastName, address, cityTown, zipCode, mobile, email } = req.body;
+
+        // Check if user is authenticated
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: "User not authenticated"
+            });
+        }
+
+        // Validate all required fields
+        if (!firstName || !lastName || !address || !cityTown || !zipCode || !mobile || !email) {
+            return res.status(400).json({
+                success: false,
+                message: "Please provide all required fields"
+            });
+        }
+
+        // Validate email format
+        if (!validator.isEmail(email)) {
+            return res.status(400).json({
+                success: false,
+                message: "Please enter a valid email address"
+            });
+        }
+
+        // Validate mobile number (basic validation)
+        if (!validator.isMobilePhone(mobile, 'any')) {
+            return res.status(400).json({
+                success: false,
+                message: "Please enter a valid mobile number"
+            });
+        }
+
+        // Validate zip code (basic validation - adjust based on your country)
+        if (zipCode.length < 3) {
+            return res.status(400).json({
+                success: false,
+                message: "Please enter a valid zip code"
+            });
+        }
+
+        // Check if delivery information already exists for this user
+    
+        const existingInfo = await DeliveryInformation.findOne({ userId });
+
+        if (existingInfo) {
+            existingInfo.firstName = firstName;
+            existingInfo.lastName = lastName;
+            existingInfo.address = address;
+            existingInfo.cityTown = cityTown;
+            existingInfo.zipCode = zipCode;
+            existingInfo.mobile = mobile;
+            existingInfo.email = email;
+            existingInfo.updatedAt = new Date();
+
+            await existingInfo.save();
+
+            return res.status(200).json({
+                success: true,
+                message: "Delivery information updated successfully",
+                data: existingInfo
+            });
+        }
+
+        // Create new delivery information
+        const newDeliveryInfo = new DeliveryInformation({
+            userId,
+            firstName,
+            lastName,
+            address,
+            cityTown,
+            zipCode,
+            mobile,
+            email
+        });
+
+        await newDeliveryInfo.save();
+
+        return res.status(201).json({
+            success: true,
+            message: "Delivery information saved successfully",
+            data: newDeliveryInfo
+        });
+
+    } catch (error: any) {
+        console.error("Add delivery information error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "An error occurred while saving delivery information",
+            error: error.message
+        });
+    }
+};
+
+// Get delivery details
+export const getDeliveryInformation = async (req: Request, res: Response) => {
+    try {
+        const userId = req.user?.id;
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: "User not authenticated"
+            });
+        }
+
+        const deliveryInfo = await DeliveryInformation.findOne({ userId });
+
+        if (!deliveryInfo) {
+            return res.status(404).json({
+                success: false,
+                message: "No delivery information found"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: deliveryInfo
+        });
+
+    } catch (error: any) {
+        console.error("Get delivery information error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "An error occurred while fetching delivery information",
+            error: error.message
+        });
+    }
+};
+
+// Update delivery information
+export const updateDeliveryInformation = async (req: Request, res: Response) => {
+    try {
+        const userId = req.user?.id;
+        const { firstName, lastName, address, cityTown, zipCode, mobile, email } = req.body;
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: "User not authenticated"
+            });
+        }
+
+        // Validate email if provided
+        if (email && !validator.isEmail(email)) {
+            return res.status(400).json({
+                success: false,
+                message: "Please enter a valid email address"
+            });
+        }
+
+        // Validate mobile if provided
+        if (mobile && !validator.isMobilePhone(mobile, 'any')) {
+            return res.status(400).json({
+                success: false,
+                message: "Please enter a valid mobile number"
+            });
+        }
+
+        const deliveryInfo = await DeliveryInformation.findOne({ userId });
+
+        if (!deliveryInfo) {
+            return res.status(404).json({
+                success: false,
+                message: "No delivery information found"
+            });
+        }
+
+        // Update only provided fields
+        if (firstName) deliveryInfo.firstName = firstName;
+        if (lastName) deliveryInfo.lastName = lastName;
+        if (address) deliveryInfo.address = address;
+        if (cityTown) deliveryInfo.cityTown = cityTown;
+        if (zipCode) deliveryInfo.zipCode = zipCode;
+        if (mobile) deliveryInfo.mobile = mobile;
+        if (email) deliveryInfo.email = email;
+        deliveryInfo.updatedAt = new Date();
+
+        await deliveryInfo.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Delivery information updated successfully",
+            data: deliveryInfo
+        });
+
+    } catch (error: any) {
+        console.error("Update delivery information error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "An error occurred while updating delivery information",
+            error: error.message
+        });
+    }
+};
+
+
+
 export const userController = {
     UserSignUP,
     verifyEmail,
     requestNewOTP,
     getAllUsers,
     getaUser,
-    UserLogin
+    UserLogin,
+    getUserProfile,
+    refreshToken,
+	addDeliveryInformation,
+	getDeliveryInformation,
+	updateDeliveryInformation
 }

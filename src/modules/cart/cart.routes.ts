@@ -1,15 +1,15 @@
 import express from "express";
 import { authenticate } from "../../shared/middleware/authenticate";
-import { getCartItems, addCartItem, updateCartItem, removeCartItem, clearCart } from "./cart.controller";
+import { cartRoutes } from "./cart.controller";
 
-const cartRoutes = express.Router();
+const CartRoutes = express.Router();
 
-cartRoutes.get("/get-cart", authenticate, getCartItems);
-cartRoutes.post("/add-cart", authenticate, addCartItem);
-cartRoutes.put("/update-cart/:id", authenticate, updateCartItem);
-cartRoutes.delete("/remove-cart/:id", authenticate, removeCartItem);
-cartRoutes.delete("/clear-cart", authenticate, clearCart);
+CartRoutes.get("/get-cart", authenticate, cartRoutes.getCartItems);
+CartRoutes.post("/add-cart", authenticate, cartRoutes.addCartItem);
+CartRoutes.put("/update-cart/:id", authenticate, cartRoutes.updateCartItem);
+CartRoutes.delete("/remove-cart/:id", authenticate, cartRoutes.removeCartItem);
+CartRoutes.delete("/clear-cart", authenticate, cartRoutes.clearCart);
 
-export default cartRoutes;
+export default CartRoutes;
 
 

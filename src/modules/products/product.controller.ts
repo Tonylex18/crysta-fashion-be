@@ -103,25 +103,32 @@ export const addProduct = async (req: Request, res: Response) => {
     let finalImageUrl = undefined;
     let finalImages: string[] = [];
 
+    // Build absolute base URL using protocol and host
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+
     if (files) {
-      // Multiple files uploaded
       if (files.image_url && files.image_url.length > 0) {
-        // Main image is the first one
-        finalImageUrl = `uploads/${files.image_url[0].originalname}`;
+        const filename = files.image_url[0].filename || files.image_url[0].originalname;
+        finalImageUrl = `${baseUrl}/uploads/${filename}`;
       }
       
       if (files.images && files.images.length > 0) {
-        // Additional images
-        finalImages = files.images.map((file: any) => `uploads/${file.originalname}`);
+        finalImages = files.images.map((file: any) => {
+          const filename = file.filename || file.originalname;
+          return `${baseUrl}/uploads/${filename}`;
+        });
       }
 
       // If no separate images field, use all uploaded files
       if (!files.images && files.image_url && files.image_url.length > 1) {
-        finalImages = files.image_url.slice(1).map((file: any) => `uploads/${file.originalname}`);
+        finalImages = files.image_url.slice(1).map((file: any) => {
+          const filename = file.filename || file.originalname;
+          return `${baseUrl}/uploads/${filename}`;
+        });
       }
     } else if (singleFile) {
-      // Single file uploaded
-      finalImageUrl = `uploads/${singleFile.originalname}`;
+      const filename = (singleFile as any).filename || (singleFile as any).originalname;
+      finalImageUrl = `${baseUrl}/uploads/${filename}`;
     }
 
     // Create product
