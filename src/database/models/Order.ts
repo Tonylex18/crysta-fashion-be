@@ -15,6 +15,15 @@ export interface IOrder extends Document {
   total: number;
   shipping_address: IShippingAddress;
   paymentStatus?: 'pending' | 'paid' | 'failed' | 'refunded';
+  paymentMethod?: string;
+  orderNumber?: string;
+  items?: Types.ObjectId[];
+  subtotal?: number;
+  shippingFee?: number;
+  tax?: number;
+  totalAmount?: number;
+  billingAddress?: IShippingAddress;
+  phoneNumber?: string;
   paidAt?: Date;
   deliveredAt?: Date;
   transactionId?: string;
@@ -29,6 +38,10 @@ const orderSchema = new Schema<IOrder>({
     ref: 'User',
     required: true
   },
+  orderNumber: {
+    type: String,
+    unique: true
+  },
   status: {
     type: String,
     enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled'],
@@ -38,6 +51,18 @@ const orderSchema = new Schema<IOrder>({
     type: Number,
     required: true,
     min: 0
+  },
+  subtotal: {
+    type: Number
+  },
+  shippingFee: {
+    type: Number
+  },
+  tax: {
+    type: Number
+  },
+  totalAmount: {
+    type: Number
   },
   shipping_address: {
     name: {
@@ -65,6 +90,24 @@ const orderSchema = new Schema<IOrder>({
       required: true
     }
   },
+  billingAddress: {
+    name: String,
+    address: String,
+    city: String,
+    state: String,
+    zip: String,
+    country: String
+  },
+  paymentMethod: {
+    type: String
+  },
+  phoneNumber: {
+    type: String
+  },
+  items: [{
+    type: Schema.Types.ObjectId,
+    ref: 'OrderItem'
+  }],
   paymentStatus: {
     type: String,
     enum: ['pending', 'paid', 'failed', 'refunded'],

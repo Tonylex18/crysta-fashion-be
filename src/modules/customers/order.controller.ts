@@ -6,7 +6,7 @@ import Order from "../../database/models/Order";
 // Create order from cart
 export const createOrder = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user?._id;
+        const userId = (req as any).user?.id;
         const {
             shippingAddress,
             billingAddress,
@@ -51,14 +51,15 @@ export const createOrder = async (req: Request, res: Response) => {
 
         // Create order
         const newOrder = new Order({
-            userId,
+            user_id: userId,
             orderNumber: generateOrderNumber(),
             items: [],
             subtotal,
             shippingFee,
             tax,
             totalAmount,
-            shippingAddress,
+            total: totalAmount,
+            shipping_address: shippingAddress,
             billingAddress: billingAddress || shippingAddress,
             paymentMethod,
             phoneNumber,
@@ -73,13 +74,14 @@ export const createOrder = async (req: Request, res: Response) => {
             const product = cartItem.product_id as any;
 
             const orderItem = new OrderItem({
-                orderId: newOrder._id,
-                productId: cartItem.product_id,
+                order_id: newOrder._id,
+                product_id: cartItem.product_id,
                 quantity: cartItem.quantity,
                 price: cartItem.price,
                 subtotal: cartItem.price * cartItem.quantity,
                 color: cartItem.color,
-                specifications: cartItem.specifications
+                size: cartItem.size,
+                specifications: cartItem.specifications || ''
             });
 
             await orderItem.save();
@@ -99,8 +101,8 @@ export const createOrder = async (req: Request, res: Response) => {
             .populate({
                 path: "items",
                 populate: {
-                    path: "productId",
-                    select: "name images brand"
+                    path: "product_id",
+                    select: "name image_url"
                 }
             })
             .populate("user_id", "name email");
@@ -123,7 +125,7 @@ export const createOrder = async (req: Request, res: Response) => {
 // Get all orders for a user
 export const getUserOrders = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user?._id;
+        const userId = (req as any).user?.id;
         const { status, page = 1, limit = 10 } = req.query;
 
         const filter: any = { user_id: userId };
@@ -135,8 +137,8 @@ export const getUserOrders = async (req: Request, res: Response) => {
             .populate({
                 path: "items",
                 populate: {
-                    path: "productId",
-                    select: "name images brand price"
+                    path: "product_id",
+                    select: "name image_url price"
                 }
             })
             .sort({ createdAt: -1 })
@@ -186,8 +188,8 @@ export const getAllOrders = async (req: Request, res: Response) => {
             .populate({
                 path: "items",
                 populate: {
-                    path: "productId",
-                    select: "name images brand price"
+                    path: "product_id",
+                    select: "name image_url price"
                 }
             })
             .sort({ createdAt: -1 })
@@ -222,12 +224,12 @@ export const getOrderById = async (req: Request, res: Response) => {
         const { id } = req.params;
 
         const order = await Order.findById(id)
-            .populate("user_id", "name email phoneNumber")
+            .populate("user_id", "name email")
             .populate({
                 path: "items",
                 populate: {
-                    path: "productId",
-                    select: "name images brand price specifications"
+                    path: "product_id",
+                    select: "name image_url price"
                 }
             });
 
@@ -354,7 +356,7 @@ export const updatePaymentStatus = async (req: Request, res: Response) => {
 export const cancelOrder = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const userId = (req as any).user?._id;
+        const userId = (req as any).user?.id;
 
         const order = await Order.findById(id);
 
