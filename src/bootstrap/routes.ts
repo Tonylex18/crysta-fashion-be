@@ -6,6 +6,7 @@ import ProductRoutes from "../modules/products/product.routes";
 import categoryRoutes from "../modules/categories/category.routes";
 import CartRoutes from "../modules/cart/cart.routes";
 import paymentRoutes from "../modules/payment/payment.routes";
+import adminRoutes from "../modules/admin/admin.routes";
 
 const handleRoutes = (app: Application) => {
 	// health check
@@ -23,6 +24,9 @@ const handleRoutes = (app: Application) => {
 	app.use("/api/products", ProductRoutes)
     app.use("/api/categories", categoryRoutes)
 	app.use("/api/payment", paymentRoutes)
+
+	// admin routes
+	app.use("/api/admin", adminRoutes)
 
 	app.use(globalErrorHandler);
 };
