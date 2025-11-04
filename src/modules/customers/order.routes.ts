@@ -1,13 +1,16 @@
 import express from "express";
-import { authenticateToken } from "../../middleware/auth";
 import { orderController } from "./order.controller";
+import { authenticate } from "../../shared/middleware/authenticate";
+import { authorizeRoles } from "../../shared/middleware/auth-user-roles.middleware";
+import { Role } from "../../shared/enums/user-role.enum";
 
 const orderRoutes = express.Router();
 
-orderRoutes.post("/checkout", authenticateToken, orderController.createOrder);
-orderRoutes.get("/my", authenticateToken, orderController.getUserOrders);
-orderRoutes.get("/:id", authenticateToken, orderController.getOrderById);
-orderRoutes.post("/:id/cancel", authenticateToken, orderController.cancelOrder);
+orderRoutes.post("/checkout", authenticate, orderController.createOrder);
+orderRoutes.get("/get-all-orders", authenticate, orderController.getUserOrders);
+orderRoutes.get("/get-order-byId/:id", authenticate, orderController.getOrderById);
+orderRoutes.post("/cancel-order/:id/cancel", authenticate, orderController.cancelOrder);
+orderRoutes.put("/update-order-status/:id", authenticate, authorizeRoles([Role.ADMIN]), orderController.updateOrderStatus)
 
 export default orderRoutes;
 
