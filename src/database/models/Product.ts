@@ -14,11 +14,6 @@ export interface IProduct extends Document {
   stock: number;
   sku?: string;
   weight?: number;
-  dimensions?: {
-    length?: number;
-    width?: number;
-    height?: number;
-  };
   featured: boolean;
   isActive: boolean;
   tags?: string[];
@@ -65,8 +60,30 @@ const productSchema = new Schema<IProduct>({
     type: Number,
     min: [0, 'Compare at price cannot be negative'],
     validate: {
-      validator: function(this: IProduct, value: number) {
-        return !value || value >= this.price;
+      validator: async function(this: any, value: number) {
+        // Skip validation if compareAtPrice is not provided
+        if (!value) return true;
+        
+        // For updates (query context)
+        if (this instanceof mongoose.Query) {
+          const update = this.getUpdate() as any;
+          const priceInUpdate = update.$set?.price || update.price;
+          
+          if (priceInUpdate !== undefined) {
+            // If price is being updated in same operation, compare with new price
+            return value >= priceInUpdate;
+          }
+          
+          // If price is not being updated, get current price from DB
+          const docId = this.getQuery()._id;
+          const currentDoc = await mongoose.model('Product').findById(docId).select('price');
+          if (currentDoc) {
+            return value >= currentDoc.price;
+          }
+        }
+        
+        // For new documents (document context)
+        return value >= this.price;
       },
       message: 'Compare at price must be greater than or equal to the selling price'
     }
@@ -125,20 +142,6 @@ const productSchema = new Schema<IProduct>({
   weight: {
     type: Number,
     min: [0, 'Weight cannot be negative']
-  },
-  dimensions: {
-    length: {
-      type: Number,
-      min: [0, 'Length cannot be negative']
-    },
-    width: {
-      type: Number,
-      min: [0, 'Width cannot be negative']
-    },
-    height: {
-      type: Number,
-      min: [0, 'Height cannot be negative']
-    }
   },
   featured: {
     type: Boolean,

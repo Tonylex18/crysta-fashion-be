@@ -1,4 +1,5 @@
-import { Application } from "express";
+import express, { Application } from "express";
+import path from "path";
 import globalErrorHandler from "../utils/global-error/global-error.handler";
 import userRoutes from "../modules/customers/customer.routes";
 import orderRoutes from "../modules/customers/order.routes";
@@ -16,6 +17,9 @@ const handleRoutes = (app: Application) => {
 			message: "Server is up and running",
 		});
 	});
+
+	// serve uploaded static files
+	app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
 	
     // user routes
     app.use("/api/user", userRoutes)

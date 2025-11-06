@@ -21,7 +21,6 @@ export const addProduct = async (req: Request, res: Response) => {
       compareAtPrice,
       sku,
       weight,
-      dimensions,
       tags,
       metaTitle,
       metaDescription
@@ -33,17 +32,17 @@ export const addProduct = async (req: Request, res: Response) => {
 
     // Validation
     if (!name || !price || !category_id) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Name, price, and category are required fields" 
+        message: "Name, price, and category are required fields"
       });
     }
 
     // Validate category_id format
     if (!mongoose.Types.ObjectId.isValid(category_id)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Invalid category ID format" 
+        message: "Invalid category ID format"
       });
     }
 
@@ -55,7 +54,7 @@ export const addProduct = async (req: Request, res: Response) => {
       .replace(/^-|-$/g, '');
 
     // Check if product with same name exists
-    const existingProduct = await Product.findOne({ 
+    const existingProduct = await Product.findOne({
       $or: [
         { name: name.trim() },
         { slug: slug }
@@ -63,15 +62,15 @@ export const addProduct = async (req: Request, res: Response) => {
     });
 
     if (existingProduct) {
-      return res.status(409).json({ 
+      return res.status(409).json({
         success: false,
-        message: "Product with this name already exists" 
+        message: "Product with this name already exists"
       });
     }
 
     // Parse featured (form-data sends as string)
     const parsedFeatured = featured === 'true' || featured === true;
-    
+
     // Parse stock
     const parsedStock = stock ? parseInt(stock) : 0;
 
@@ -83,16 +82,6 @@ export const addProduct = async (req: Request, res: Response) => {
 
     // Parse weight
     const parsedWeight = weight ? parseFloat(weight) : undefined;
-
-    // Parse dimensions (if sent as JSON string)
-    let parsedDimensions = undefined;
-    if (dimensions) {
-      try {
-        parsedDimensions = typeof dimensions === 'string' ? JSON.parse(dimensions) : dimensions;
-      } catch (e) {
-        parsedDimensions = undefined;
-      }
-    }
 
     // Parse arrays (sizes, colors, tags) - form-data might send as string
     const parsedSizes = sizes ? (Array.isArray(sizes) ? sizes : sizes.split(',').map((s: string) => s.trim())) : [];
@@ -111,7 +100,7 @@ export const addProduct = async (req: Request, res: Response) => {
         const filename = files.image_url[0].filename || files.image_url[0].originalname;
         finalImageUrl = `${baseUrl}/uploads/${filename}`;
       }
-      
+
       if (files.images && files.images.length > 0) {
         finalImages = files.images.map((file: any) => {
           const filename = file.filename || file.originalname;
@@ -147,7 +136,6 @@ export const addProduct = async (req: Request, res: Response) => {
       compareAtPrice: parsedCompareAtPrice,
       sku: sku?.trim(),
       weight: parsedWeight,
-      dimensions: parsedDimensions,
       tags: parsedTags.length > 0 ? parsedTags : undefined,
       metaTitle: metaTitle?.trim(),
       metaDescription: metaDescription?.trim()
@@ -165,29 +153,29 @@ export const addProduct = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Add product error:", error);
-    
+
     // Handle duplicate key error
     if (error.code === 11000) {
-      return res.status(409).json({ 
+      return res.status(409).json({
         success: false,
-        message: "Product with this slug or SKU already exists" 
+        message: "Product with this slug or SKU already exists"
       });
     }
 
     // Handle validation errors
     if (error.name === 'ValidationError') {
       const errors = Object.values(error.errors).map((err: any) => err.message);
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         message: "Validation failed",
-        errors 
+        errors
       });
     }
 
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Failed to add product", 
-      error: error.message 
+      message: "Failed to add product",
+      error: error.message
     });
   }
 };
@@ -266,10 +254,10 @@ export const getAllProducts = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Get all products error:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Failed to fetch products", 
-      error: error.message 
+      message: "Failed to fetch products",
+      error: error.message
     });
   }
 };
@@ -290,9 +278,9 @@ export const getProductById = async (req: Request, res: Response) => {
     }
 
     if (!product) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "Product not found" 
+        message: "Product not found"
       });
     }
 
@@ -302,10 +290,10 @@ export const getProductById = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Get product error:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Failed to fetch product", 
-      error: error.message 
+      message: "Failed to fetch product",
+      error: error.message
     });
   }
 };
@@ -314,42 +302,116 @@ export const getProductById = async (req: Request, res: Response) => {
 export const updateProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const updateData = { ...req.body };
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+    console.log('Raw req.body:', req.body);
+    console.log('Files:', files);
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Invalid product ID format" 
+        message: "Invalid product ID format"
       });
     }
 
     // Validate category_id if provided
     if (updateData.category_id && !mongoose.Types.ObjectId.isValid(updateData.category_id)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Invalid category ID format" 
+        message: "Invalid category ID format"
       });
+    }
+
+    // Parse JSON strings from FormData back to proper types
+    const fieldsToParseAsJSON = ['sizes', 'colors', 'tags'];
+    fieldsToParseAsJSON.forEach(field => {
+      if (updateData[field] && typeof updateData[field] === 'string') {
+        try {
+          updateData[field] = JSON.parse(updateData[field]);
+        } catch (e) {
+          console.error(`Failed to parse ${field}:`, e);
+        }
+      }
+    });
+
+    // Convert string booleans to actual booleans
+    if (updateData.featured !== undefined) {
+      updateData.featured = updateData.featured === 'true' || updateData.featured === true;
+    }
+
+    // Convert numeric strings to numbers
+    const numericFields = ['price', 'stock', 'compareAtPrice', 'weight'];
+    numericFields.forEach(field => {
+      if (updateData[field] !== undefined && updateData[field] !== '') {
+        updateData[field] = parseFloat(updateData[field]);
+      }
+    });
+
+    // Validate compareAtPrice manually
+    if (updateData.compareAtPrice !== undefined) {
+      // Get current product to check price
+      const currentProduct = await Product.findById(id);
+      if (!currentProduct) {
+        return res.status(404).json({
+          success: false,
+          message: "Product not found"
+        });
+      }
+
+      const priceToCompare = updateData.price !== undefined ? updateData.price : currentProduct.price;
+
+      if (updateData.compareAtPrice > 0 && updateData.compareAtPrice < priceToCompare) {
+        return res.status(400).json({
+          success: false,
+          message: "Compare at price must be greater than or equal to the selling price"
+        });
+      }
+    }
+
+    // Handle file uploads
+    if (files) {
+      if (files.image_url && files.image_url[0]) {
+        const baseUrl = process.env.BASE_URL || 'http://localhost:5001';
+        updateData.image_url = `${baseUrl}/uploads/${files.image_url[0].filename}`;
+      }
+
+      if (files.images && files.images.length > 0) {
+        const baseUrl = process.env.BASE_URL || 'http://localhost:5001';
+        const imageUrls = files.images.map(file => `${baseUrl}/uploads/${file.filename}`);
+
+        const existingProduct = await Product.findById(id);
+        if (existingProduct && existingProduct.images) {
+          updateData.images = [...existingProduct.images, ...imageUrls];
+        } else {
+          updateData.images = imageUrls;
+        }
+      }
     }
 
     // Don't allow slug to be manually updated
     delete updateData.slug;
 
+    console.log('Processed update data:', JSON.stringify(updateData, null, 2));
+
     const product = await Product.findByIdAndUpdate(
       id,
       { $set: updateData },
-      { 
-        new: true, 
+      {
+        new: true,
         runValidators: true,
         context: 'query'
       }
     ).populate('category_id', 'name slug');
 
     if (!product) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "Product not found" 
+        message: "Product not found"
       });
     }
+
+    console.log('Product after update:', JSON.stringify(product, null, 2));
 
     return res.status(200).json({
       success: true,
@@ -360,25 +422,25 @@ export const updateProduct = async (req: Request, res: Response) => {
     console.error("Update product error:", error);
 
     if (error.code === 11000) {
-      return res.status(409).json({ 
+      return res.status(409).json({
         success: false,
-        message: "Product with this SKU already exists" 
+        message: "Product with this SKU already exists"
       });
     }
 
     if (error.name === 'ValidationError') {
       const errors = Object.values(error.errors).map((err: any) => err.message);
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         message: "Validation failed",
-        errors 
+        errors
       });
     }
 
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Failed to update product", 
-      error: error.message 
+      message: "Failed to update product",
+      error: error.message
     });
   }
 };
@@ -389,18 +451,18 @@ export const deleteProduct = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Invalid product ID format" 
+        message: "Invalid product ID format"
       });
     }
 
     const product = await Product.findByIdAndDelete(id);
 
     if (!product) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "Product not found" 
+        message: "Product not found"
       });
     }
 
@@ -411,10 +473,10 @@ export const deleteProduct = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Delete product error:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Failed to delete product", 
-      error: error.message 
+      message: "Failed to delete product",
+      error: error.message
     });
   }
 };
@@ -425,9 +487,9 @@ export const deactivateProduct = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Invalid product ID format" 
+        message: "Invalid product ID format"
       });
     }
 
@@ -438,9 +500,9 @@ export const deactivateProduct = async (req: Request, res: Response) => {
     ).populate('category_id', 'name slug');
 
     if (!product) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "Product not found" 
+        message: "Product not found"
       });
     }
 
@@ -451,10 +513,10 @@ export const deactivateProduct = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Deactivate product error:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Failed to deactivate product", 
-      error: error.message 
+      message: "Failed to deactivate product",
+      error: error.message
     });
   }
 };
@@ -465,9 +527,9 @@ export const activateProduct = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Invalid product ID format" 
+        message: "Invalid product ID format"
       });
     }
 
@@ -478,9 +540,9 @@ export const activateProduct = async (req: Request, res: Response) => {
     ).populate('category_id', 'name slug');
 
     if (!product) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "Product not found" 
+        message: "Product not found"
       });
     }
 
@@ -491,10 +553,10 @@ export const activateProduct = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Activate product error:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Failed to activate product", 
-      error: error.message 
+      message: "Failed to activate product",
+      error: error.message
     });
   }
 };
@@ -506,25 +568,25 @@ export const updateStock = async (req: Request, res: Response) => {
     const { quantity, operation = 'set' } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Invalid product ID format" 
+        message: "Invalid product ID format"
       });
     }
 
     if (quantity === undefined || !Number.isInteger(quantity)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Quantity must be a valid integer" 
+        message: "Quantity must be a valid integer"
       });
     }
 
     const product = await Product.findById(id);
 
     if (!product) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "Product not found" 
+        message: "Product not found"
       });
     }
 
@@ -556,10 +618,10 @@ export const updateStock = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Update stock error:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Failed to update stock", 
-      error: error.message 
+      message: "Failed to update stock",
+      error: error.message
     });
   }
 };
@@ -570,9 +632,9 @@ export const getFeaturedProducts = async (req: Request, res: Response) => {
     const { limit = 10 } = req.query;
     const limitNum = Math.min(50, Math.max(1, parseInt(limit as string)));
 
-    const products = await Product.find({ 
-      featured: true, 
-      isActive: true 
+    const products = await Product.find({
+      featured: true,
+      isActive: true
     })
       .populate('category_id', 'name slug')
       .limit(limitNum)
@@ -586,10 +648,10 @@ export const getFeaturedProducts = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Get featured products error:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Failed to fetch featured products", 
-      error: error.message 
+      message: "Failed to fetch featured products",
+      error: error.message
     });
   }
 };
@@ -601,9 +663,9 @@ export const getProductsByCategory = async (req: Request, res: Response) => {
     const { page = 1, limit = 10, sort = '-createdAt' } = req.query;
 
     if (!mongoose.Types.ObjectId.isValid(categoryId)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Invalid category ID format" 
+        message: "Invalid category ID format"
       });
     }
 
@@ -611,9 +673,9 @@ export const getProductsByCategory = async (req: Request, res: Response) => {
     const limitNum = Math.min(100, Math.max(1, parseInt(limit as string)));
     const skip = (pageNum - 1) * limitNum;
 
-    const query = { 
-      category_id: categoryId, 
-      isActive: true 
+    const query = {
+      category_id: categoryId,
+      isActive: true
     };
 
     const [products, total] = await Promise.all([
@@ -638,10 +700,10 @@ export const getProductsByCategory = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Get products by category error:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Failed to fetch products by category", 
-      error: error.message 
+      message: "Failed to fetch products by category",
+      error: error.message
     });
   }
 };
@@ -652,9 +714,9 @@ export const searchProducts = async (req: Request, res: Response) => {
     const { q, page = 1, limit = 10 } = req.query;
 
     if (!q || typeof q !== 'string' || q.trim().length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Search query is required" 
+        message: "Search query is required"
       });
     }
 
@@ -690,10 +752,10 @@ export const searchProducts = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Search products error:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Failed to search products", 
-      error: error.message 
+      message: "Failed to search products",
+      error: error.message
     });
   }
 };
@@ -737,10 +799,10 @@ export const getLowStockProducts = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Get low stock products error:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Failed to fetch low stock products", 
-      error: error.message 
+      message: "Failed to fetch low stock products",
+      error: error.message
     });
   }
 };
@@ -781,10 +843,10 @@ export const getOutOfStockProducts = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Get out of stock products error:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Failed to fetch out of stock products", 
-      error: error.message 
+      message: "Failed to fetch out of stock products",
+      error: error.message
     });
   }
 };
@@ -795,26 +857,26 @@ export const bulkUpdateProducts = async (req: Request, res: Response) => {
     const { productIds, updateData } = req.body;
 
     if (!Array.isArray(productIds) || productIds.length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Product IDs array is required" 
+        message: "Product IDs array is required"
       });
     }
 
     if (!updateData || Object.keys(updateData).length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Update data is required" 
+        message: "Update data is required"
       });
     }
 
     // Validate all IDs
     const invalidIds = productIds.filter(id => !mongoose.Types.ObjectId.isValid(id));
     if (invalidIds.length > 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         message: "Some product IDs are invalid",
-        invalidIds 
+        invalidIds
       });
     }
 
@@ -840,17 +902,17 @@ export const bulkUpdateProducts = async (req: Request, res: Response) => {
 
     if (error.name === 'ValidationError') {
       const errors = Object.values(error.errors).map((err: any) => err.message);
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         message: "Validation failed",
-        errors 
+        errors
       });
     }
 
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Failed to bulk update products", 
-      error: error.message 
+      message: "Failed to bulk update products",
+      error: error.message
     });
   }
 };
@@ -861,19 +923,19 @@ export const bulkDeleteProducts = async (req: Request, res: Response) => {
     const { productIds } = req.body;
 
     if (!Array.isArray(productIds) || productIds.length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Product IDs array is required" 
+        message: "Product IDs array is required"
       });
     }
 
     // Validate all IDs
     const invalidIds = productIds.filter(id => !mongoose.Types.ObjectId.isValid(id));
     if (invalidIds.length > 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         message: "Some product IDs are invalid",
-        invalidIds 
+        invalidIds
       });
     }
 
@@ -888,10 +950,10 @@ export const bulkDeleteProducts = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Bulk delete error:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Failed to bulk delete products", 
-      error: error.message 
+      message: "Failed to bulk delete products",
+      error: error.message
     });
   }
 };
@@ -934,29 +996,29 @@ export const getProductStats = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Get product stats error:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Failed to fetch product statistics", 
-      error: error.message 
+      message: "Failed to fetch product statistics",
+      error: error.message
     });
   }
 };
 
 export const productRoutes = {
-    addProduct,
-    getAllProducts,
-    getProductById,
-    updateProduct,
-    deleteProduct,
-    deactivateProduct,
-    activateProduct,
-    updateStock,
-    getFeaturedProducts,
-    getProductsByCategory,
-    searchProducts,
-    getLowStockProducts,
-    getOutOfStockProducts,
-    bulkUpdateProducts,
-    bulkDeleteProducts,
-    getProductStats
+  addProduct,
+  getAllProducts,
+  getProductById,
+  updateProduct,
+  deleteProduct,
+  deactivateProduct,
+  activateProduct,
+  updateStock,
+  getFeaturedProducts,
+  getProductsByCategory,
+  searchProducts,
+  getLowStockProducts,
+  getOutOfStockProducts,
+  bulkUpdateProducts,
+  bulkDeleteProducts,
+  getProductStats
 }

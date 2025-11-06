@@ -288,9 +288,78 @@ export const requestNewOTP = async (req: Request, res: Response) => {
 	}
 };
 
+// Refresh token
+export const refreshToken = async (req: Request, res: Response) => {
+    try {
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
+
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                message: "No token provided"
+            });
+        }
+
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+            throw new Error("JWT secret is not set in environment variables");
+        }
+
+        let decoded: any;
+        try {
+            // Try to decode the token, even if it's expired
+            decoded = jwt.verify(token, jwtSecret, { ignoreExpiration: true });
+        } catch (error) {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid token"
+            });
+        }
+
+        // Find user by ID from the token
+        const user = await User.findById(decoded.id).select('-password');
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        // Generate new JWT token
+        const tokenPayload = {
+            id: user._id,
+            role: "ADMIN",
+            email: user.email,
+        };
+
+        const accessToken = jwt.sign(tokenPayload, jwtSecret, { expiresIn: "7d" });
+
+        res.status(200).json({
+            success: true,
+            accessToken,
+            user: {
+                id: user._id,
+                email: user.email,
+                name: user.name,
+                created_at: user.createdAt
+            }
+        });
+    } catch (error: any) {
+        console.error("Refresh token error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "An error occurred refreshing token",
+            error: error.message,
+        });
+    }
+};
+
 export const adminController = {
     AdminLogin,
     AdminSignUP,
     verifyEmail,
-    requestNewOTP
+    requestNewOTP,
+	refreshToken
 }

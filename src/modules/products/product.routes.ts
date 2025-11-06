@@ -22,10 +22,11 @@ ProductRoutes.post('/add-product', authenticate, authorizeRoles([Role.ADMIN]),  
    productRoutes.addProduct);
 ProductRoutes.get('/get-products', productRoutes.getAllProducts);
 ProductRoutes.get('/get-single-product/:id', productRoutes.getProductById);
-ProductRoutes.put('/update-product/:id', authenticate, authorizeRoles([Role.ADMIN]), productRoutes.updateProduct);
+ProductRoutes.put('/update-product/:id', authenticate, authorizeRoles([Role.ADMIN]),  multer.uploadFiles.fields([ { name: 'image_url', maxCount: 1 },
+    { name: 'images', maxCount: 10 }, ]), productRoutes.updateProduct);
 ProductRoutes.patch('/update-stock/:id/stock', authenticate, authorizeRoles([Role.ADMIN]), productRoutes.updateStock);
-ProductRoutes.patch('/activate-product/:id/activate', authenticate, authorizeRoles([Role.ADMIN]), productRoutes.activateProduct);
-ProductRoutes.patch('/deactivate-product/:id/deactivate', authenticate, authorizeRoles([Role.ADMIN]), productRoutes.deactivateProduct);
+ProductRoutes.patch('/activate-product/:id', authenticate, authorizeRoles([Role.ADMIN]), productRoutes.activateProduct);
+ProductRoutes.patch('/deactivate-product/:id', authenticate, authorizeRoles([Role.ADMIN]), productRoutes.deactivateProduct);
 ProductRoutes.delete('/delete-product/:id', authenticate, authorizeRoles([Role.ADMIN]), productRoutes.deleteProduct);
 
 export default ProductRoutes;

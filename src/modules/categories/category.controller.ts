@@ -76,12 +76,11 @@ export const createCategory = async (req: Request, res: Response) => {
       // Parse sortOrder (form-data sends as string)
       const parsedSortOrder = sortOrder ? parseInt(sortOrder) : 0;
 
-      // Handle image URL - for now, we'll store the original filename or a placeholder
-      let finalImageUrl = image_url;
+      // Build public image URL from stored filename
+      let imageUrl: string | undefined = undefined;
       if (imageFile) {
-        // Since we're using memory storage, we'll store the original filename
-        // In production, you'd upload to cloud storage and get a URL
-        finalImageUrl = `uploads/${imageFile.originalname}`;
+        const filename = (imageFile as any).filename || (imageFile as any).originalname;
+        imageUrl = `${req.protocol}://${req.get('host')}/uploads/${filename}`;
       }
 
       // Create category
@@ -89,7 +88,7 @@ export const createCategory = async (req: Request, res: Response) => {
         name: name.trim(),
         slug: slug,
         description: description?.trim(),
-        image_url: finalImageUrl,
+        image_url: imageUrl,
         parent_id: (parent_id && parent_id !== 'null' && parent_id !== '') ? parent_id : null,
         isActive: parsedIsActive,
         sortOrder: parsedSortOrder,
