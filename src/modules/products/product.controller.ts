@@ -392,7 +392,7 @@ export const updateProduct = async (req: Request, res: Response) => {
     // Don't allow slug to be manually updated
     delete updateData.slug;
 
-    console.log('Processed update data:', JSON.stringify(updateData, null, 2));
+    // console.log('Processed update data:', JSON.stringify(updateData, null, 2));
 
     const product = await Product.findByIdAndUpdate(
       id,
@@ -411,7 +411,7 @@ export const updateProduct = async (req: Request, res: Response) => {
       });
     }
 
-    console.log('Product after update:', JSON.stringify(product, null, 2));
+    // console.log('Product after update:', JSON.stringify(product, null, 2));
 
     return res.status(200).json({
       success: true,

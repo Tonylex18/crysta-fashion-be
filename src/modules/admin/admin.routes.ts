@@ -8,5 +8,6 @@ adminRoutes.post('/admin-login', adminController.AdminLogin)
 adminRoutes.post('/verify-admin-mail', adminController.verifyEmail)
 adminRoutes.post('/request-new-otp', adminController.requestNewOTP)
 adminRoutes.post('/refresh-token', adminController.refreshToken)
+adminRoutes.post('/admin-signout', adminController.adminSignout)
 
 export default adminRoutes;

@@ -356,10 +356,45 @@ export const refreshToken = async (req: Request, res: Response) => {
     }
 };
 
+// Admin signout
+export const adminSignout = async (req: Request, res: Response) => {
+	try {
+		if (!req.user?.id) {
+			return res.status(401).json({
+				success: false,
+				message: "Aunthentication required",
+			})
+		}
+
+		// clear the access token cookie
+		res.cookie("accessToken", "", {
+			httpOnly: true,
+			secure: process.env.NODE_ENV === "production",
+			sameSite: "strict" as const,
+			expires: new Date(0),
+			path: "/",
+		})
+
+		return res.status(200).json({
+			success: true,
+			message: "Signed out successfully",
+		})
+
+	} catch (error: any) {
+		console.error("Admin signout error:", error);
+		return res.status(500).json({
+			success: false,
+			message: "An error occurred while signing out", 
+			error: error.message,
+		});
+	}
+}
+
 export const adminController = {
     AdminLogin,
     AdminSignUP,
     verifyEmail,
     requestNewOTP,
-	refreshToken
+	refreshToken,
+	adminSignout
 }
