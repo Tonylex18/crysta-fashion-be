@@ -11,6 +11,7 @@ orderRoutes.get("/get-all-orders", authenticate, orderController.getUserOrders);
 orderRoutes.get("/get-order-byId/:id", authenticate, orderController.getOrderById);
 orderRoutes.post("/cancel-order/:id/cancel", authenticate, orderController.cancelOrder);
 orderRoutes.put("/update-order-status/:id", authenticate, authorizeRoles([Role.ADMIN]), orderController.updateOrderStatus)
+orderRoutes.put('/update-payment-status/:id', authenticate, orderController.updatePaymentStatus);
 
 export default orderRoutes;
 

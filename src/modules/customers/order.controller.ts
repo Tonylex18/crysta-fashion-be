@@ -305,18 +305,13 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
 export const updatePaymentStatus = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { paymentStatus, transactionId } = req.body;
+        const { paymentStatus } = req.body;
 
-        const validPaymentStatuses = ["pending", "paid", "failed", "refunded"];
-
-        if (!validPaymentStatuses.includes(paymentStatus)) {
-            return res.status(400).json({
-                success: false,
-                message: "Invalid payment status"
-            });
-        }
-
-        const order = await Order.findById(id);
+        const order = await Order.findByIdAndUpdate(
+            id,
+            { paymentStatus },
+            { new: true }
+        );
 
         if (!order) {
             return res.status(404).json({
@@ -324,18 +319,6 @@ export const updatePaymentStatus = async (req: Request, res: Response) => {
                 message: "Order not found"
             });
         }
-
-        (order as any).paymentStatus = paymentStatus;
-        
-        if (transactionId) {
-            (order as any).transactionId = transactionId;
-        }
-
-        if (paymentStatus === "paid") {
-            (order as any).paidAt = new Date();
-        }
-
-        await order.save();
 
         return res.status(200).json({
             success: true,
@@ -346,7 +329,7 @@ export const updatePaymentStatus = async (req: Request, res: Response) => {
         console.error("Update payment status error:", error);
         return res.status(500).json({
             success: false,
-            message: "An error occurred while updating payment status",
+            message: "Failed to update payment status",
             error: error.message
         });
     }

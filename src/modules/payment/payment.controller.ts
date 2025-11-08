@@ -2,12 +2,13 @@ import { Request, Response } from "express";
 import crypto from "crypto";
 import { paystackService } from "../../utils/paystack.service";
 import Payment from "../../database/models/payment";
+import Order from "../../database/models/Order";
 
 // Initialize payment
 export const initializePayment = async (req: Request, res: Response) => {
     try {
         const userId = req.user?.id;
-        const { amount, email, orderId, metadata } = req.body;
+        const { amount, email, orderId, reference, metadata } = req.body;
 
         if (!userId) {
             return res.status(401).json({
@@ -17,10 +18,10 @@ export const initializePayment = async (req: Request, res: Response) => {
         }
 
         // Validate required fields
-        if (!amount || !email) {
+        if (!amount || !email || !reference) {
             return res.status(400).json({
                 success: false,
-                message: "Amount and email are required"
+                message: "Amount, email, and reference are required"
             });
         }
 
@@ -32,9 +33,6 @@ export const initializePayment = async (req: Request, res: Response) => {
             });
         }
 
-        // Generate unique reference
-        const reference = `TXN_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
-
         // Prepare metadata
         const paymentMetadata = {
             userId,
@@ -42,28 +40,15 @@ export const initializePayment = async (req: Request, res: Response) => {
             ...metadata
         };
 
-        // Initialize payment with Paystack
-        const paystackResponse = await paystackService.initializePayment(
-            email,
-            amount,
-            paymentMetadata
-        );
-
-        if (!paystackResponse.status) {
-            return res.status(400).json({
-                success: false,
-                message: "Failed to initialize payment with Paystack"
-            });
-        }
-
-        // Save payment record to database
+        // Save payment record to database BEFORE calling Paystack
+        // Use the provided reference as paystackReference
         const payment = new Payment({
             userId,
             orderId,
             email,
             amount,
             reference,
-            paystackReference: paystackResponse.data.reference,
+            paystackReference: reference,
             status: 'pending',
             metadata: paymentMetadata,
             currency: 'NGN'
@@ -71,13 +56,13 @@ export const initializePayment = async (req: Request, res: Response) => {
 
         await payment.save();
 
+        console.log(`Payment record created with reference: ${reference}`);
+
         return res.status(200).json({
             success: true,
             message: "Payment initialized successfully",
             data: {
-                authorizationUrl: paystackResponse.data.authorization_url,
-                accessCode: paystackResponse.data.access_code,
-                reference: paystackResponse.data.reference,
+                reference: reference,
                 paymentId: payment._id
             }
         });
@@ -104,6 +89,8 @@ export const verifyPayment = async (req: Request, res: Response) => {
             });
         }
 
+        console.log('Verifying payment with reference:', reference);
+
         // Verify payment with Paystack
         const paystackResponse = await paystackService.verifyPayment(reference);
 
@@ -114,26 +101,44 @@ export const verifyPayment = async (req: Request, res: Response) => {
             });
         }
 
-        // Find payment in database
-        const payment = await Payment.findOne({ paystackReference: reference });
-
-        if (!payment) {
-            return res.status(404).json({
-                success: false,
-                message: "Payment record not found"
-            });
-        }
-
-        // Update payment status
         const transactionData = paystackResponse.data;
 
-        payment.status = transactionData.status === 'success' ? 'success' : 'failed';
-        payment.paystackResponse = transactionData;
-        payment.paymentMethod = transactionData.authorization?.brand;
-        payment.channel = transactionData.channel;
-        payment.paidAt = transactionData.status === 'success' ? new Date(transactionData.paid_at) : undefined;
+        // Find or create payment record
+        let payment = await Payment.findOne({ paystackReference: reference });
+
+        if (!payment) {
+            payment = new Payment({
+                paystackReference: reference,
+                status: transactionData.status === 'success' ? 'success' : 'failed',
+                amount: transactionData.amount / 100,
+                email: transactionData.customer.email,
+                paystackResponse: transactionData,
+                paymentMethod: transactionData.authorization?.brand,
+                channel: transactionData.channel,
+                paidAt: transactionData.status === 'success' ? new Date(transactionData.paid_at) : undefined,
+            });
+        } else {
+            payment.status = transactionData.status === 'success' ? 'success' : 'failed';
+            payment.paystackResponse = transactionData;
+            payment.paymentMethod = transactionData.authorization?.brand;
+            payment.channel = transactionData.channel;
+            payment.paidAt = transactionData.status === 'success' ? new Date(transactionData.paid_at) : undefined;
+        }
 
         await payment.save();
+
+        // 🔥 THIS IS THE KEY FIX - Update the order's payment status
+        if (payment.orderId && payment.status === 'success') {
+            const updatedOrder = await Order.findByIdAndUpdate(
+                payment.orderId,
+                { 
+                    paymentStatus: 'paid',
+                    status: 'processing'
+                },
+                { new: true }
+            );
+            console.log(`✅ Order ${payment.orderId} marked as paid. Updated order:`, updatedOrder);
+        }
 
         return res.status(200).json({
             success: true,
@@ -141,7 +146,7 @@ export const verifyPayment = async (req: Request, res: Response) => {
             data: {
                 status: payment.status,
                 amount: payment.amount,
-                reference: payment.reference,
+                reference: reference,
                 paidAt: payment.paidAt,
                 channel: payment.channel
             }
